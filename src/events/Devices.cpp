@@ -70,6 +70,9 @@ void Events::listener_newInput(wl_listener* listener, void* data) {
             g_pInputManager->newKeyboard(DEVICE);
             break;
         case WLR_INPUT_DEVICE_POINTER:
+        case WLR_INPUT_DEVICE_TABLET_PAD:
+        case WLR_INPUT_DEVICE_TABLET_TOOL:
+        case WLR_INPUT_DEVICE_TOUCH:
             Debug::log(LOG, "Attached a mouse with name %s", DEVICE->name);
             g_pInputManager->newMouse(DEVICE);
             break;
