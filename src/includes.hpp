@@ -73,6 +73,10 @@ extern "C" {
 #include <wlr/types/wlr_input_inhibitor.h>
 #include <wlr/types/wlr_keyboard_shortcuts_inhibit_v1.h>
 #include <wlr/types/wlr_virtual_pointer_v1.h>
+#define delete delete_
+#include <wlr/types/wlr_input_method_v2.h>
+#include <wlr/types/wlr_text_input_v3.h>
+#undef delete
 #include <wlr/util/log.h>
 #include <wlr/xwayland.h>
 #include <wlr/util/region.h>

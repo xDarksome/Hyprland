@@ -210,6 +210,10 @@ Vector2D CInputManager::getMouseCoordsInternal() {
     return Vector2D(g_pCompositor->m_sWLRCursor->x, g_pCompositor->m_sWLRCursor->y);
 }
 
+SKeyboard* CInputManager::getActiveKeyboard() {
+    return m_pActiveKeyboard;
+}
+
 void CInputManager::newKeyboard(wlr_input_device* keyboard) {
     m_lKeyboards.push_back(SKeyboard());
 
@@ -235,6 +239,8 @@ void CInputManager::newKeyboard(wlr_input_device* keyboard) {
     PNEWKEYBOARD->hyprListener_keyboardDestroy.initCallback(&keyboard->events.destroy, &Events::listener_keyboardDestroy, PNEWKEYBOARD, "Keyboard");
 
     wlr_seat_set_keyboard(g_pCompositor->m_sSeat.seat, keyboard->keyboard);
+
+    m_pActiveKeyboard = PNEWKEYBOARD;
 
     Debug::log(LOG, "New keyboard created, pointers Hypr: %x and WLR: %x", PNEWKEYBOARD, keyboard);
 
@@ -312,6 +318,8 @@ void CInputManager::destroyKeyboard(SKeyboard* pKeyboard) {
     pKeyboard->hyprListener_keyboardKey.removeCallback();
 
     m_lKeyboards.remove(*pKeyboard);
+
+    m_pActiveKeyboard = m_lKeyboards.size() > 0 ? &m_lKeyboards.back() : nullptr;
 }
 
 void CInputManager::destroyMouse(wlr_input_device* mouse) {
@@ -449,4 +457,124 @@ void CInputManager::constrainMouse(SMouse* pMouse, wlr_pointer_constraint_v1* co
 
 void Events::listener_commitConstraint(void* owner, void* data) {
     //g_pInputManager->recheckConstraint((SMouse*)owner);
+}
+
+void CInputManager::createTextInput(wlr_text_input_v3* pInput) {
+    Debug::log(LOG, "Request to create TextInput at %x", pInput);
+
+    m_lTextInputs.emplace_back();
+    const auto PINPUT = &m_lTextInputs.back();
+
+    PINPUT->hyprListener_InputCommit.initCallback(&pInput->events.commit, Events::listener_TextInputCommit, PINPUT, "TextInput");
+    PINPUT->hyprListener_InputDestroy.initCallback(&pInput->events.destroy, Events::listener_TextInputDestroy, PINPUT, "TextInput");
+    PINPUT->hyprListener_InputDisable.initCallback(&pInput->events.disable, Events::listener_TextInputDisable, PINPUT, "TextInput");
+    PINPUT->hyprListener_InputEnable.initCallback(&pInput->events.enable, Events::listener_TextInputEnable, PINPUT, "TextInput");
+
+    Debug::log(LOG, "Created TextInput at %x", PINPUT);
+}
+
+void CInputManager::sendIMState(wlr_text_input_v3* pTextInput) {
+    const auto PIME = g_pCompositor->m_sSeat.pCurrentIME;
+
+    if (!PIME) {
+        Debug::log(LOG, "SendIMState in dead IME");
+        return;
+    }
+
+    if (pTextInput->active_features & WLR_TEXT_INPUT_V3_FEATURE_SURROUNDING_TEXT) {
+        wlr_input_method_v2_send_surrounding_text(PIME, pTextInput->current.surrounding.text, pTextInput->current.surrounding.cursor, pTextInput->current.surrounding.anchor);
+    }
+
+    wlr_input_method_v2_send_text_change_cause(PIME, pTextInput->current.text_change_cause);
+
+    if (pTextInput->active_features & WLR_TEXT_INPUT_V3_FEATURE_CONTENT_TYPE) {
+        wlr_input_method_v2_send_content_type(PIME, pTextInput->current.content_type.hint, pTextInput->current.content_type.purpose);
+    }
+
+    wlr_input_method_v2_send_done(PIME);
+}
+
+void CInputManager::destroyTextInput(STextInput* pInput) {
+    m_lTextInputs.remove(*pInput); // will cleanup listeners
+}
+
+void Events::listener_TextInputEnable(void* owner, void* data) {
+    const auto PTI = (STextInput*)owner;
+
+    if (!g_pCompositor->m_sSeat.pCurrentIME) {
+        Debug::log(LOG, "Enabling TextInput in dead IME!");
+        return;
+    }
+
+    Debug::log(LOG, "Enabling IME state (TextInput)");
+
+    wlr_input_method_v2_send_activate(g_pCompositor->m_sSeat.pCurrentIME);
+    g_pInputManager->sendIMState(PTI->wlrInput);
+}
+
+void Events::listener_TextInputCommit(void* owner, void* data) {
+    const auto PTI = (STextInput*)owner;
+
+    if (!PTI->wlrInput->current_enabled) {
+        Debug::log(LOG, "Ignoring commit from IME that's disabled");
+        return;
+    }
+
+    if (!g_pCompositor->m_sSeat.pCurrentIME) {
+        Debug::log(LOG, "Committing TextInput in dead IME!");
+        return;
+    }
+
+    Debug::log(LOG, "Committing IME state (TextInput)");
+
+    g_pInputManager->sendIMState(PTI->wlrInput);
+}
+
+void Events::listener_TextInputDisable(void* owner, void* data) {
+    const auto PTI = (STextInput*)owner;
+
+    if (!g_pCompositor->m_sSeat.pCurrentIME) {
+        Debug::log(LOG, "Disabling TextInput in dead IME!");
+        return;
+    }
+
+    Debug::log(LOG, "Disabling IME state (TextInput)");
+
+    wlr_input_method_v2_send_deactivate(g_pCompositor->m_sSeat.pCurrentIME);
+    g_pInputManager->sendIMState(PTI->wlrInput);
+}
+
+void Events::listener_TextInputDestroy(void* owner, void* data) {
+    const auto PTI = (STextInput*)owner;
+
+    Debug::log(LOG, "Destroying IME state (TextInput)");
+
+    g_pInputManager->destroyTextInput(PTI);
+}
+
+STextInput* CInputManager::getFocusedTextInput() {
+    for (auto& ti : m_lTextInputs) {
+        if (ti.pSurface)
+            return &ti;
+    }
+
+    return nullptr;
+}
+
+void CInputManager::textInputSetFocus(STextInput* pInput, wlr_surface* pSurface) {
+    if (pInput->pSurface == pSurface)
+        return;
+
+     if (pInput->pSurface)
+        wlr_text_input_v3_send_leave(pInput->wlrInput);
+    
+    pInput->pSurface = pSurface;
+
+    wlr_text_input_v3_send_enter(pInput->wlrInput, pSurface);
+}
+
+void CInputManager::textInputSetFocusAll(wlr_surface* pSurface) {
+    for (auto& ti : m_lTextInputs) {
+        textInputSetFocus(&ti, pSurface);
+    }
 }

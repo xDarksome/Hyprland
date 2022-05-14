@@ -102,6 +102,10 @@ CCompositor::CCompositor() {
     m_sWLRVKeyboardMgr = wlr_virtual_keyboard_manager_v1_create(m_sWLDisplay);
 
     m_sWLRVirtPtrMgr = wlr_virtual_pointer_manager_v1_create(m_sWLDisplay);
+
+    m_sWLRIMEMgr = wlr_input_method_manager_v2_create(m_sWLDisplay);
+
+    m_sWLRTextInputMgr = wlr_text_input_manager_v3_create(m_sWLDisplay);
 }
 
 CCompositor::~CCompositor() {
@@ -135,6 +139,8 @@ void CCompositor::initAllSignals() {
     addWLSignal(&m_sWLRPointerConstraints->events.new_constraint, &Events::listen_newConstraint, m_sWLRPointerConstraints, "PointerConstraints");
     addWLSignal(&m_sWLRXDGDecoMgr->events.new_toplevel_decoration, &Events::listen_NewXDGDeco, m_sWLRXDGDecoMgr, "XDGDecoMgr");
     addWLSignal(&m_sWLRVirtPtrMgr->events.new_virtual_pointer, &Events::listen_newVirtPtr, m_sWLRVirtPtrMgr, "VirtPtrMgr");
+    addWLSignal(&m_sWLRTextInputMgr->events.text_input, &Events::listen_newInput, m_sWLRTextInputMgr, "TextInputMgr");
+    addWLSignal(&m_sWLRIMEMgr->events.input_method, &Events::listen_NewIME, m_sWLRIMEMgr, "IMEMgr");
 
     signal(SIGINT, handleCritSignal);
     signal(SIGTERM, handleCritSignal);
@@ -464,6 +470,7 @@ void CCompositor::focusSurface(wlr_surface* pSurface, CWindow* pWindowOwner) {
         return;
 
     wlr_seat_keyboard_notify_enter(m_sSeat.seat, pSurface, KEYBOARD->keycodes, KEYBOARD->num_keycodes, &KEYBOARD->modifiers);
+    g_pInputManager->textInputSetFocusAll(pSurface);
 
     wlr_seat_keyboard_focus_change_event event = {
         .seat = m_sSeat.seat,

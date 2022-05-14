@@ -5,6 +5,7 @@
 #include "../../wlr-layer-shell-unstable-v1-protocol.h"
 #include "../Window.hpp"
 #include "SubsurfaceTree.hpp"
+#include "TextInput.hpp"
 
 struct SLayerSurface {
     wlr_layer_surface_v1*   layerSurface;
@@ -114,11 +115,26 @@ struct SXDGPopup {
     }
 };
 
+struct SIME {
+    wlr_input_method_v2* pIME = nullptr;
+
+    DYNLISTENER(newTextInput);
+    DYNLISTENER(IMENew);
+    DYNLISTENER(IMECommit);
+    DYNLISTENER(IMEGrab);
+    DYNLISTENER(IMEDestroy);
+    DYNLISTENER(IMEDestroyGrab);
+};
+
 struct SSeat {
     wlr_seat*       seat = nullptr;
     wl_client*      exclusiveClient = nullptr;
 
     SMouse*         mouse = nullptr;
+
+    wlr_input_method_v2* pCurrentIME = nullptr;
+
+    SIME            IME;
 };
 
 struct SDrag {

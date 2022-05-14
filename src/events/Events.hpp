@@ -109,4 +109,20 @@ namespace Events {
 
     // Deco XDG
     LISTENER(NewXDGDeco);
+
+    // Text input and IME
+    LISTENER(TextInput);
+    LISTENER(NewIME);
+
+    DYNLISTENFUNC(TextInputEnable);
+    DYNLISTENFUNC(TextInputDisable);
+    DYNLISTENFUNC(TextInputCommit);
+    DYNLISTENFUNC(TextInputDestroy);
+    DYNLISTENFUNC(TextInputFocusedSurfaceDestroy);
+
+    DYNLISTENFUNC(IMENew);
+    DYNLISTENFUNC(IMECommit);
+    DYNLISTENFUNC(IMEGrab);
+    DYNLISTENFUNC(IMEDestroy);
+    DYNLISTENFUNC(IMEDestroyGrab);
 };

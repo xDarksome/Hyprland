@@ -56,6 +56,8 @@ public:
     wlr_server_decoration_manager*   m_sWLRServerDecoMgr;
     wlr_xdg_decoration_manager_v1*   m_sWLRXDGDecoMgr;
     wlr_virtual_pointer_manager_v1*  m_sWLRVirtPtrMgr;
+    wlr_input_method_manager_v2*     m_sWLRIMEMgr;
+    wlr_text_input_manager_v3*       m_sWLRTextInputMgr;
     // ------------------------------------------------- //
 
 
