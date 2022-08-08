@@ -336,9 +336,11 @@ void CInputManager::processMouseDownNormal(wlr_pointer_button_event* e) {
         return;
     }
 
+    const auto WINDOW = g_pCompositor->windowFromCursor();
+
     // notify the keybind manager
     static auto *const PPASSMOUSE = &g_pConfigManager->getConfigValuePtr("binds:pass_mouse_when_bound")->intValue;
-    const auto PASS = g_pKeybindManager->onMouseEvent(e);
+    const auto PASS = g_pKeybindManager->onMouseEvent(e, WINDOW == NULL);
 
     if (!PASS && !*PPASSMOUSE)
         return;
@@ -353,7 +355,7 @@ void CInputManager::processMouseDownNormal(wlr_pointer_button_event* e) {
                 g_pCompositor->moveWindowToTop(g_pCompositor->m_pLastWindow);
 
             if ((e->button == BTN_LEFT || e->button == BTN_RIGHT) && wlr_keyboard_get_modifiers(PKEYBOARD) == (uint32_t)g_pConfigManager->getInt("general:main_mod_internal")) {
-                currentlyDraggedWindow = g_pCompositor->windowFromCursor();
+                currentlyDraggedWindow = WINDOW;
                 dragButton = e->button;
 
                 g_pLayoutManager->getCurrentLayout()->onBeginDragWindow();

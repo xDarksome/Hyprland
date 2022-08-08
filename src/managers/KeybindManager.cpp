@@ -171,18 +171,20 @@ bool CKeybindManager::onAxisEvent(wlr_pointer_axis_event* e) {
     return !found;
 }
 
-bool CKeybindManager::onMouseEvent(wlr_pointer_button_event* e) {
+bool CKeybindManager::onMouseEvent(wlr_pointer_button_event* e, bool is_desktop) {
     const auto MODS = g_pInputManager->accumulateModsFromAllKBs();
 
     bool found = false;
 
+    auto prefix = is_desktop ? "dmouse:" : "mouse:";
+
     if (e->state == WLR_BUTTON_PRESSED) {
-        found = g_pKeybindManager->handleKeybinds(MODS, "mouse:" + std::to_string(e->button), 0, 0, true, 0);
+        found = g_pKeybindManager->handleKeybinds(MODS, prefix + std::to_string(e->button), 0, 0, true, 0);
 
         if (found)
             shadowKeybinds();
     } else {
-        found = g_pKeybindManager->handleKeybinds(MODS, "mouse:" + std::to_string(e->button), 0, 0, false, 0);
+        found = g_pKeybindManager->handleKeybinds(MODS, prefix + std::to_string(e->button), 0, 0, false, 0);
 
         shadowKeybinds();
     }
